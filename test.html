@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Clicker Game</title>
+    <style>
+        body {
+            font-family: sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            background-color: #f0f0f0;
+            user-select: none; /* Zapobiega zaznaczaniu tekstu */
+        }
+
+        #game-container {
+            text-align: center;
+            background-color: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            width: 80%; /* Ustaw szerokość, aby kontrolować układ */
+            max-width: 600px; /* Ogranicz maksymalną szerokość */
+        }
+
+        #click-button {
+            font-size: 24px;
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 20px;
+        }
+
+        #click-button:hover {
+            background-color: #3e8e41;
+        }
+
+        #click-button:active {
+            background-color: #367c39;
+        }
+
+        #score-display {
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        .upgrade-button {
+            font-size: 16px;
+            padding: 8px 16px;
+            background-color: #008CBA;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        .upgrade-button:hover {
+             background-color: #0077a3
+        }
+        .upgrade-button:disabled{
+            background-color: #666666;
+            cursor: default;
+        }
+        #upgrades{
+            display: flex;
+            flex-direction: row;
+            flex-wrap: wrap; /* Pozwala na zawijanie elementów */
+            justify-content: center; /* Wyśrodkowanie w poziomie */
+
+        }
+
+        .upgrade-container {
+             margin: 5px;
+             padding: 5px;
+             border: 1px solid #ccc;
+             border-radius: 4px;
+            display: inline-block; /*  aby przyciski były obok siebie */
+
+         }
+
+        #click-upgrades {
+            order: 2; /* Ulepszenia klikania na dole */
+            width: 100%; /* Zajmują całą szerokość */
+            text-align: center; /* Wyśrodkowanie przycisków w sekcji */
+
+        }
+        #auto-upgrades {
+            order: 1;  /* Autokliki na górze */
+            width: 100%;
+        }
+        .auto-upgrade-container{
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: space-between; /*Rozmieszcza równomiernie*/
+            border: 1px solid #ddd;
+            padding: 8px;
+            margin-bottom: 5px;
+            border-radius: 4px;
+        }
+        .auto-upgrade-info{
+            flex-grow: 1; /* Pozwala na rozszerzanie */
+            text-align: left;
+            margin-right: 10px;
+        }
+
+
+        #message {
+            margin-top: 15px;
+            font-size: 1rem;
+            color: red;
+        }
+
+        /* Nowe style, by ulepszenia klikniec byly pod przyciskiem, a auto obok siebie */
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <button id="click-button">Kliknij mnie!</button>
+        <div id="score-display">Punkty: 0</div>
+        <div id="upgrades">
+            <div id="auto-upgrades"></div>
+            <div id="click-upgrades"></div>
+        </div>
+         <div id="message"></div>
+    </div>
+
+    <script>
+        class ClickerGame {
+            constructor() {
+                this.score = 0;
+                this.clickValue = 1;
+                this.upgrades = [
+                    // Ulepszenia kliknięcia
+                    { type: "click", name: "Kliknięcie+1", cost: 10, clickIncrease: 1, level: 0, baseCost: 10 },
+                    { type: "click", name: "Superklik", cost: 100, clickIncrease: 5, level: 0, baseCost: 100 },
+
+                    // Ulepszenia autoklików
+                    { type: "auto", name: "Autokliker", cost: 50, clicksPerSecond: 1, level: 0, baseCost: 50, intervalId: null },
+                    { type: "auto", name: "Szybki Autokliker", cost: 200, clicksPerSecond: 5, level: 0, baseCost: 200, intervalId: null },
+                    { type: "auto", name: "Mega Autokliker", cost: 500, clicksPerSecond: 10, level: 0, baseCost: 500, intervalId: null },
+                ];
+
+                this.clickButton = document.getElementById("click-button");
+                this.scoreDisplay = document.getElementById("score-display");
+                this.upgradesContainer = document.getElementById("upgrades");
+                this.autoUpgradesContainer = document.getElementById("auto-upgrades");
+                this.clickUpgradesContainer = document.getElementById("click-upgrades");
+                this.message = document.getElementById("message");
+
+                this.clickButton.addEventListener("click", () => this.handleClick());
+                this.renderUpgrades();
+            }
+
+            handleClick() {
+                this.score += this.clickValue;
+                this.updateScoreDisplay();
+                this.clearMessage();
+            }
+
+            updateScoreDisplay() {
+                this.scoreDisplay.textContent = `Punkty: ${this.score}`;
+                this.renderUpgrades(); // Odświeżamy ulepszenia, żeby zaktualizować dostępność
+            }
+
+            renderUpgrades() {
+                this.autoUpgradesContainer.innerHTML = ''; // Wyczyść przed ponownym renderowaniem
+                this.clickUpgradesContainer.innerHTML = '';
+
+                this.upgrades.forEach((upgrade, index) => {
+                    if(upgrade.type === "click"){
+                        this.renderClickUpgrade(upgrade,index);
+                    } else if (upgrade.type === "auto"){
+                       this.renderAutoUpgrade(upgrade, index);
+                    }
+                });
+            }
+            renderClickUpgrade(upgrade, index){
+                 const upgradeContainer = document.createElement('div');
+                 upgradeContainer.classList.add("upgrade-container");
+
+                const upgradeButton = document.createElement("button");
+                upgradeButton.textContent = `${upgrade.name} (Poziom: ${upgrade.level}) - Koszt: ${upgrade.cost}`;
+                upgradeButton.classList.add("upgrade-button");
+                upgradeButton.disabled = this.score < upgrade.cost;
+                upgradeButton.addEventListener("click", () => this.buyUpgrade(index));
+
+                upgradeContainer.appendChild(upgradeButton);
+                this.clickUpgradesContainer.appendChild(upgradeContainer);
+            }
+
+            renderAutoUpgrade(upgrade, index) {
+                const upgradeContainer = document.createElement("div");
+                upgradeContainer.classList.add("auto-upgrade-container");
+
+                const upgradeInfo = document.createElement("div");
+                upgradeInfo.classList.add("auto-upgrade-info");
+                upgradeInfo.textContent = `${upgrade.name} (Poziom: ${upgrade.level}, CPS: ${upgrade.clicksPerSecond * upgrade.level}) - Koszt: ${upgrade.cost}`;
+
+                const upgradeButton = document.createElement("button");
+                upgradeButton.textContent = "Kup";
+                upgradeButton.classList.add("upgrade-button");
+                upgradeButton.disabled = this.score < upgrade.cost;
+                upgradeButton.addEventListener("click", () => this.buyUpgrade(index));
+
+                upgradeContainer.appendChild(upgradeInfo);
+                upgradeContainer.appendChild(upgradeButton);
+                this.autoUpgradesContainer.appendChild(upgradeContainer);
+            }
+
+
+
+            buyUpgrade(upgradeIndex) {
+                const upgrade = this.upgrades[upgradeIndex];
+                if (this.score >= upgrade.cost) {
+                    this.score -= upgrade.cost;
+                    upgrade.level++;
+
+                    if (upgrade.clickIncrease) {
+                        this.clickValue += upgrade.clickIncrease;
+                    }
+
+                   if (upgrade.clicksPerSecond) {
+                        if (!upgrade.intervalId) { // Startuj autokliker tylko raz
+                            upgrade.intervalId = setInterval(() => {
+                                this.score += upgrade.clicksPerSecond * upgrade.level;
+                                this.updateScoreDisplay();
+                            }, 1000);  // Co sekundę
+                        }
+                    }
+
+                    // Zwiększenie kosztu ulepszenia
+                    upgrade.cost = Math.round(upgrade.baseCost * Math.pow(1.2, upgrade.level));  // Prosty wykładniczy wzrost kosztu
+                    this.updateScoreDisplay();
+                    this.renderUpgrades();
+                    this.clearMessage();
+
+                } else {
+                    this.showMessage("Nie masz wystarczająco punktów!");
+                }
+            }
+
+             showMessage(text) {
+                this.message.textContent = text;
+                this.message.style.display = "block";
+
+            }
+             clearMessage() {
+                 this.message.textContent = "";
+            }
+        }
+
+        const game = new ClickerGame();
+    </script>
+</body>
+</html>
